@@ -3,22 +3,22 @@ session_start();
 
 /* ===== 初期化 ===== */
 if (!isset($_SESSION['numbers'])) {
-    $_SESSION['numbers'] = range(1, 75); // 抽選対象
+    $_SESSION['numbers'] = range(1, 75);
     shuffle($_SESSION['numbers']);
-    $_SESSION['history'] = array();     // 抽選履歴
+    $_SESSION['history'] = array();
 }
 
-/* ===== 抽選処理 ===== */
-$current = null;
+/* ===== 抽選結果確定 ===== */
+$fixedNumber = null;
 if (isset($_POST['draw']) && count($_SESSION['numbers']) > 0) {
-    $current = array_shift($_SESSION['numbers']);
-    $_SESSION['history'][] = $current;
+    $fixedNumber = array_shift($_SESSION['numbers']);
+    $_SESSION['history'][] = $fixedNumber;
 }
 
 /* ===== リセット ===== */
 if (isset($_POST['reset'])) {
     session_destroy();
-    header("Location: bingo.php");
+    header("Location: roulette.php");
     exit;
 }
 ?>
@@ -31,13 +31,13 @@ if (isset($_POST['reset'])) {
     <title>ビンゴ ルーレット</title>
     <style>
         body {
-            font-family: sans-serif;
             text-align: center;
+            font-family: sans-serif;
         }
 
-        .current {
-            font-size: 80px;
-            margin: 20px;
+        #display {
+            font-size: 100px;
+            margin: 30px;
             color: red;
         }
 
@@ -48,6 +48,11 @@ if (isset($_POST['reset'])) {
             padding: 5px;
             border: 1px solid #000;
         }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+        }
     </style>
 </head>
 
@@ -55,19 +60,18 @@ if (isset($_POST['reset'])) {
 
     <h1>🎯 ビンゴ ルーレット</h1>
 
-    <?php if ($current !== null): ?>
-        <div class="current">
-            <?php echo $current; ?>
-        </div>
-    <?php else: ?>
-        <div class="current">--</div>
-    <?php endif; ?>
+    <div id="display">--</div>
 
-    <form method="post">
-        <button type="submit" name="draw" <?php if (count($_SESSION['numbers']) == 0) echo 'disabled'; ?>>
+    <form method="post" id="drawForm">
+        <button type="submit" name="draw"
+            <?php if (count($_SESSION['numbers']) == 0) echo 'disabled'; ?>>
             抽選
         </button>
         <button type="submit" name="reset">リセット</button>
+
+        <?php if ($fixedNumber !== null): ?>
+            <input type="hidden" id="result" value="<?php echo $fixedNumber; ?>">
+        <?php endif; ?>
     </form>
 
     <h2>抽選済み番号</h2>
@@ -77,9 +81,21 @@ if (isset($_POST['reset'])) {
         <?php endforeach; ?>
     </div>
 
-    <?php if (count($_SESSION['numbers']) == 0): ?>
-        <h2>🎉 全ての数字が出ました！</h2>
-    <?php endif; ?>
+    <script>
+        <?php if ($fixedNumber !== null): ?>
+            let count = 0;
+            let interval = setInterval(() => {
+                document.getElementById("display").textContent =
+                    Math.floor(Math.random() * 75) + 1;
+                count++;
+                if (count > 40) { // 約2秒
+                    clearInterval(interval);
+                    document.getElementById("display").textContent =
+                        document.getElementById("result").value;
+                }
+            }, 50);
+        <?php endif; ?>
+    </script>
 
 </body>
 

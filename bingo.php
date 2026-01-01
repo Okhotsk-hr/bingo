@@ -1,28 +1,45 @@
 <?php
 session_start();
 
-/* ===== 初期化 ===== */
-if (!isset($_SESSION['numbers'])) {
-    $_SESSION['numbers'] = range(1, 75);
-    shuffle($_SESSION['numbers']);
-    $_SESSION['history'] = array();
+/* 初期化 */
+if (!isset($_SESSION['drawn'])) {
+    $_SESSION['drawn'] = [];
+}
+if (!isset($_SESSION['pending'])) {
+    $_SESSION['pending'] = null;
 }
 
-/* ===== 抽選結果確定 ===== */
-$fixedNumber = null;
-if (isset($_POST['draw']) && count($_SESSION['numbers']) > 0) {
-    $fixedNumber = array_shift($_SESSION['numbers']);
-    $_SESSION['history'][] = $fixedNumber;
+/* 抽選ボタンが押された */
+if (isset($_POST['draw'])) {
+
+    // 前回の pending を確定
+    if ($_SESSION['pending'] !== null) {
+        $_SESSION['drawn'][] = $_SESSION['pending'];
+        $_SESSION['pending'] = null;
+    }
+
+    // 未抽選の数字を抽選
+    $numbers = range(1, 75);
+    $remaining = array_values(array_diff($numbers, $_SESSION['drawn']));
+
+    if (!empty($remaining)) {
+        $_SESSION['pending'] = $remaining[array_rand($remaining)];
+    }
 }
 
-/* ===== リセット ===== */
-if (isset($_POST['reset'])) {
-    session_destroy();
-    header("Location: roulette.php");
-    exit;
+/* 最新確定番号（表示用） */
+$fixedNumber = $_SESSION['pending'];
+
+/* BINGO列分類 */
+$columns = ['B' => [], 'I' => [], 'N' => [], 'G' => [], 'O' => []];
+foreach ($_SESSION['drawn'] as $n) {
+    if ($n <= 15) $columns['B'][] = $n;
+    elseif ($n <= 30) $columns['I'][] = $n;
+    elseif ($n <= 45) $columns['N'][] = $n;
+    elseif ($n <= 60) $columns['G'][] = $n;
+    else $columns['O'][] = $n;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ja">
 
@@ -31,71 +48,94 @@ if (isset($_POST['reset'])) {
     <title>ビンゴ ルーレット</title>
     <style>
         body {
-            text-align: center;
             font-family: sans-serif;
+            text-align: center;
         }
 
         #display {
-            font-size: 100px;
-            margin: 30px;
-            color: red;
+            font-size: 80px;
+            font-weight: bold;
+            margin: 20px;
         }
 
-        .history span {
-            display: inline-block;
-            width: 40px;
-            margin: 3px;
-            padding: 5px;
+        table {
+            margin: auto;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
             border: 1px solid #000;
+            width: 80px;
+            height: 40px;
         }
 
-        button {
-            font-size: 18px;
-            padding: 10px 20px;
+        th {
+            font-size: 24px;
+        }
+
+        .latest {
+            font-size: 48px;
+            margin: 20px;
+            color: red;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>🎯 ビンゴ ルーレット</h1>
+    <h1>B I N G O</h1>
 
     <div id="display">--</div>
 
-    <form method="post" id="drawForm">
-        <button type="submit" name="draw"
-            <?php if (count($_SESSION['numbers']) == 0) echo 'disabled'; ?>>
-            抽選
-        </button>
-        <button type="submit" name="reset">リセット</button>
+    <?php if ($fixedNumber !== null): ?>
+        <div class="latest">
+            前回の番号：<span id="latest"></span>
+        </div>
+    <?php endif; ?>
 
-        <?php if ($fixedNumber !== null): ?>
-            <input type="hidden" id="result" value="<?php echo $fixedNumber; ?>">
-        <?php endif; ?>
+    <form method="post">
+        <button type="submit" name="draw">抽選</button>
     </form>
 
     <h2>抽選済み番号</h2>
-    <div class="history">
-        <?php foreach ($_SESSION['history'] as $n): ?>
-            <span><?php echo $n; ?></span>
-        <?php endforeach; ?>
-    </div>
+    <table>
+        <tr>
+            <th>B</th>
+            <th>I</th>
+            <th>N</th>
+            <th>G</th>
+            <th>O</th>
+        </tr>
+        <tr>
+            <?php foreach ($columns as $col): ?>
+                <td><?= implode(', ', $col) ?></td>
+            <?php endforeach; ?>
+        </tr>
+    </table>
 
-    <script>
-        <?php if ($fixedNumber !== null): ?>
-            let count = 0;
-            let interval = setInterval(() => {
+    <?php if ($fixedNumber !== null): ?>
+        <input type="hidden" id="result" value="<?= $fixedNumber ?>">
+
+        <script>
+            let roulette = setInterval(() => {
                 document.getElementById("display").textContent =
                     Math.floor(Math.random() * 75) + 1;
-                count++;
-                if (count > 40) { // 約2秒
-                    clearInterval(interval);
-                    document.getElementById("display").textContent =
-                        document.getElementById("result").value;
-                }
             }, 50);
-        <?php endif; ?>
-    </script>
+
+            // 2秒後に停止
+            setTimeout(() => {
+                clearInterval(roulette);
+
+                // 最新番号を表示
+                document.getElementById("display").textContent =
+                    document.getElementById("result").value;
+
+                document.getElementById("latest").textContent =
+                    document.getElementById("result").value;
+            }, 2000);
+        </script>
+    <?php endif; ?>
 
 </body>
 

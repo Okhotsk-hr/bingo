@@ -120,6 +120,15 @@ foreach ($_SESSION['drawn'] as $n) {
     // ★ ビンゴ開始時の表示
     if (empty($_SESSION['drawn']) && $fixedNumber === null) {
         echo '<div class="start">ビンゴを開始してください</div>';
+        $info = "start";
+        $str = '1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPUQRSTUVWXYZ';
+        $_SESSION["str_r"] = substr(str_shuffle($str), 0, 7);
+        $info .= "-" . $_SESSION["str_r"];
+        include("db.php");
+    } else {
+        $info = "drop";
+        $info .= "-" . $_SESSION["str_r"];
+        include("db.php");
     }
     ?>
 

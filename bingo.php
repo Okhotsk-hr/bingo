@@ -1,7 +1,14 @@
 <?php
 session_start();
 
-/* 初期化 */
+/* ===== リセット ===== */
+if (isset($_POST['reset'])) {
+    session_destroy();
+    header("Location: bingo.php");
+    exit;
+}
+
+/* ===== 初期化 ===== */
 if (!isset($_SESSION['drawn'])) {
     $_SESSION['drawn'] = [];
 }
@@ -9,16 +16,16 @@ if (!isset($_SESSION['pending'])) {
     $_SESSION['pending'] = null;
 }
 
-/* 抽選ボタンが押された */
+/* ===== 抽選 ===== */
 if (isset($_POST['draw'])) {
 
-    // 前回の pending を確定
+    // 前回 pending を確定
     if ($_SESSION['pending'] !== null) {
         $_SESSION['drawn'][] = $_SESSION['pending'];
         $_SESSION['pending'] = null;
     }
 
-    // 未抽選の数字を抽選
+    // 未抽選数字
     $numbers = range(1, 75);
     $remaining = array_values(array_diff($numbers, $_SESSION['drawn']));
 
@@ -27,10 +34,10 @@ if (isset($_POST['draw'])) {
     }
 }
 
-/* 最新確定番号（表示用） */
+/* 最新番号 */
 $fixedNumber = $_SESSION['pending'];
 
-/* BINGO列分類 */
+/* ===== BINGO列分類 ===== */
 $columns = ['B' => [], 'I' => [], 'N' => [], 'G' => [], 'O' => []];
 foreach ($_SESSION['drawn'] as $n) {
     if ($n <= 15) $columns['B'][] = $n;
@@ -58,26 +65,47 @@ foreach ($_SESSION['drawn'] as $n) {
             margin: 20px;
         }
 
-        table {
-            margin: auto;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            border: 1px solid #000;
-            width: 80px;
-            height: 40px;
-        }
-
-        th {
-            font-size: 24px;
-        }
-
         .latest {
             font-size: 48px;
             margin: 20px;
             color: red;
+        }
+
+        .start {
+            font-size: 28px;
+            color: green;
+            margin: 20px;
+        }
+
+        .bingo {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .column {
+            margin: 0 10px;
+        }
+
+        .column table {
+            border-collapse: collapse;
+        }
+
+        .column th,
+        .column td {
+            border: 1px solid #000;
+            width: 60px;
+            height: 35px;
+        }
+
+        .column th {
+            font-size: 28px;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 5px;
         }
     </style>
 </head>
@@ -88,51 +116,60 @@ foreach ($_SESSION['drawn'] as $n) {
 
     <div id="display">--</div>
 
+    <?php
+    // ★ ビンゴ開始時の表示
+    if (empty($_SESSION['drawn']) && $fixedNumber === null) {
+        echo '<div class="start">ビンゴを開始してください</div>';
+    }
+    ?>
+
     <?php if ($fixedNumber !== null): ?>
         <div class="latest">
-            前回の番号：<span id="latest"></span>
+            最新番号：<span id="latest"></span>
         </div>
     <?php endif; ?>
 
     <form method="post">
         <button type="submit" name="draw">抽選</button>
+        <button type="submit" name="reset">リセット</button>
     </form>
 
     <h2>抽選済み番号</h2>
-    <table>
-        <tr>
-            <th>B</th>
-            <th>I</th>
-            <th>N</th>
-            <th>G</th>
-            <th>O</th>
-        </tr>
-        <tr>
-            <?php foreach ($columns as $col): ?>
-                <td><?= implode(', ', $col) ?></td>
-            <?php endforeach; ?>
-        </tr>
-    </table>
+
+    <div class="bingo">
+        <?php foreach ($columns as $label => $nums): ?>
+            <div class="column">
+                <table>
+                    <tr>
+                        <th><?= $label ?></th>
+                    </tr>
+                    <?php foreach ($nums as $n): ?>
+                        <tr>
+                            <td><?= $n ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
+        <?php endforeach; ?>
+    </div>
 
     <?php if ($fixedNumber !== null): ?>
         <input type="hidden" id="result" value="<?= $fixedNumber ?>">
 
         <script>
+            // ルーレット演出
             let roulette = setInterval(() => {
                 document.getElementById("display").textContent =
                     Math.floor(Math.random() * 75) + 1;
             }, 50);
 
-            // 2秒後に停止
+            // 停止 → 最新番号表示
             setTimeout(() => {
                 clearInterval(roulette);
 
-                // 最新番号を表示
-                document.getElementById("display").textContent =
-                    document.getElementById("result").value;
-
-                document.getElementById("latest").textContent =
-                    document.getElementById("result").value;
+                let result = document.getElementById("result").value;
+                document.getElementById("display").textContent = result;
+                document.getElementById("latest").textContent = result;
             }, 2000);
         </script>
     <?php endif; ?>
